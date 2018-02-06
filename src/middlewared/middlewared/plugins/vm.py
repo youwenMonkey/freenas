@@ -122,6 +122,9 @@ class VMSupervisor(object):
                 '-l', 'bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI{}.fd'.format('_CSM' if self.vm['bootloader'] == 'UEFI_CSM' else ''),
             ]
 
+        # Add virtio-console support
+        args += ['-s', '2,virtio-console,org.freenas.bhyve-agent=/var/run/{}'.format('vm-' + str(self.vm['id']) + '_' + self.vm['name'] + '.sock')]
+
         nid = Nid(3)
         device_map_file = None
         grub_dir = None
@@ -284,6 +287,7 @@ class VMSupervisor(object):
         self.manager._vm.pop(self.vm['id'], None)
         await self.kill_bhyve_web()
         self.destroy_tap()
+        self.destroy_virtio_socket()
 
     async def __teardown_guest_vmemory(self, id):
         guest_status = await self.middleware.call('vm.status', id)
@@ -305,6 +309,15 @@ class VMSupervisor(object):
     def destroy_tap(self):
         while self.taps:
             netif.destroy_interface(self.taps.pop())
+
+    def destroy_virtio_socket(self):
+        socket_dir = '/var/run/'
+        socket_file = socket_dir + 'vm-' + str(self.vm['id']) + '_' + self.vm['name'] + '.sock'
+        if os.path.exists(socket_file):
+            try:
+                os.remove(socket_file)
+            except OSError:
+                raise
 
     def set_iface_mtu(self, ifacesrc, ifacedst):
         ifacedst.mtu = ifacesrc.mtu
@@ -366,6 +379,7 @@ class VMSupervisor(object):
         bhyve_error = await (await Popen(['bhyvectl', '--force-reset', '--vm={}'.format(str(self.vm['id']) + '_' + self.vm['name'])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)).wait()
         self.logger.debug("==> Reset VM: {0} ID: {1} BHYVE_CODE: {2}".format(self.vm['name'], self.vm['id'], bhyve_error))
         self.destroy_tap()
+        self.destroy_virtio_socket()
         await self.kill_bhyve_web()
 
     async def stop(self, force=False):
@@ -378,6 +392,8 @@ class VMSupervisor(object):
             os.kill(self.proc.pid, signal.SIGTERM)
             self.logger.debug("===> Soft Stop VM: {0} ID: {1} BHYVE_CODE: {2}".format(self.vm['name'], self.vm['id'], self.bhyve_error))
 
+        self.destroy_tap()
+        self.destroy_virtio_socket()
         return await self.kill_bhyve_pid()
 
     async def running(self):
