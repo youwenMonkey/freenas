@@ -123,6 +123,7 @@ class SMBService(SystemServiceService):
         Bool('unixext'),
         Bool('zeroconf'),
         Bool('hostlookup'),
+        Str('srv_min_protocol', enum=['NT1', 'SMB2_02', 'SMB3_00']),
         Bool('allow_execute_always'),
         Bool('obey_pam_restrictions'),
         Bool('ntlmv1_auth'),

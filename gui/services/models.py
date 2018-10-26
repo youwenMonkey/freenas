@@ -214,6 +214,14 @@ class CIFS(Model):
                     "example place where hostname lookups are currently used "
                     "is when checking the hosts deny and hosts allow."),
     )
+    cifs_srv_min_protocol = models.CharField(
+        max_length=120,
+        verbose_name=_("Server minimum protocol"),
+        default='CORE',
+        choices=choices.CIFS_SMB_PROTO_CHOICES,
+        help_text=_("The minimum protocol version that will be supported by "
+                    "the server"),
+    )
     cifs_srv_allow_execute_always = models.BooleanField(
         verbose_name=_("Allow execute always"),
         default=True,
